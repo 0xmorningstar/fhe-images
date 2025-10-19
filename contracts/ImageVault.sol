@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {FHE, euint256, externalEuint256} from "@fhevm/solidity/lib/FHE.sol";
+import {FHE, eaddress, externalEaddress} from "@fhevm/solidity/lib/FHE.sol";
 import {SepoliaConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 
 /// @title ImageVault
 /// @notice Stores image metadata and an encrypted AES key seed (address A) using FHEVM
-/// @dev Encrypted address is represented as euint256; the dapp encodes an EVM address to uint256 off-chain
+/// @dev Encrypted address uses the dedicated eaddress ciphertext type
 contract ImageVault is SepoliaConfig {
     struct ImageRecord {
         string name;
         string ipfsHash;
-        euint256 encryptedAddressA;
+        eaddress encryptedAddressA;
     }
 
     mapping(address => ImageRecord[]) private _records;
@@ -21,15 +21,15 @@ contract ImageVault is SepoliaConfig {
     /// @notice Save an image record for the sender
     /// @param name The image name (e.g., file name)
     /// @param ipfsHash The pseudo IPFS hash (CID)
-    /// @param encAddr External encrypted uint256 (address A encoded as uint256)
+    /// @param encAddr External encrypted address handle (address A)
     /// @param inputProof The input proof coming from the relayer
     function saveImage(
         string calldata name,
         string calldata ipfsHash,
-        externalEuint256 encAddr,
+        externalEaddress encAddr,
         bytes calldata inputProof
     ) external {
-        euint256 encrypted = FHE.fromExternal(encAddr, inputProof);
+        eaddress encrypted = FHE.fromExternal(encAddr, inputProof);
 
         // Persist
         _records[msg.sender].push(ImageRecord({name: name, ipfsHash: ipfsHash, encryptedAddressA: encrypted}));
@@ -59,7 +59,7 @@ contract ImageVault is SepoliaConfig {
 
     /// @notice Get the encrypted address A for a user and index
     /// @dev The returned value is a ciphertext handle usable with the Relayer for user decryption
-    function getEncryptedAddress(address user, uint256 index) external view returns (euint256) {
+    function getEncryptedAddress(address user, uint256 index) external view returns (eaddress) {
         return _records[user][index].encryptedAddressA;
     }
 }
