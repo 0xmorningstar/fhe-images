@@ -36,9 +36,11 @@ export function ImageApp() {
   const [randomAddress, setRandomAddress] = useState<string | null>(null);
   const [ipfsHash, setIpfsHash] = useState<string>('');
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [decryptedUrls, setDecryptedUrls] = useState<Record<number, string>>({});
   const [loadingList, setLoadingList] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const decryptedUrlRef = useRef<Record<number, string>>({});
 
   useEffect(() => {
     if (file) {
@@ -126,6 +128,25 @@ export function ImageApp() {
         items.push({ name: meta[0], ipfsHash: meta[1] });
       }
       setEntries(items);
+      setDecryptedUrls((prev) => {
+        const next: Record<number, string> = {};
+        items.forEach((_, idx) => {
+          if (prev[idx]) {
+            next[idx] = prev[idx];
+          }
+        });
+        Object.keys(decryptedUrlRef.current).forEach((key) => {
+          const idx = Number(key);
+          if (!(idx in next)) {
+            const existing = decryptedUrlRef.current[idx];
+            if (existing) {
+              URL.revokeObjectURL(existing);
+            }
+          }
+        });
+        decryptedUrlRef.current = { ...next };
+        return next;
+      });
     } finally {
       setLoadingList(false);
     }
@@ -212,10 +233,25 @@ export function ImageApp() {
     const iv = stored.slice(0, 12);
     const ct = stored.slice(12);
     const plain = await decryptBytes(ct, key, iv);
-    const blob = new Blob([plain], { type: 'application/octet-stream' });
+    const blob = new Blob([plain]);
     const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    setDecryptedUrls((prev) => {
+      if (decryptedUrlRef.current[idx]) {
+        URL.revokeObjectURL(decryptedUrlRef.current[idx]);
+      }
+      decryptedUrlRef.current[idx] = url;
+      return { ...prev, [idx]: url };
+    });
   };
+
+  useEffect(() => {
+    return () => {
+      Object.values(decryptedUrlRef.current).forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
+      decryptedUrlRef.current = {};
+    };
+  }, []);
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto', padding: '1rem' }}>
@@ -270,17 +306,28 @@ export function ImageApp() {
         ) : entries.length === 0 ? (
           <div>No images saved</div>
         ) : (
-          entries.map((e, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
-              <div>
-                <div style={{ fontWeight: 600 }}>{e.name}</div>
-                <div style={{ fontFamily: 'monospace', fontSize: 12 }}>{e.ipfsHash}</div>
+          entries.map((e, i) => {
+            const previewUrl = decryptedUrls[i];
+            return (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0', gap: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600 }}>{e.name}</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: 12 }}>{e.ipfsHash}</div>
+                  {previewUrl && (
+                    <div style={{ marginTop: 8 }}>
+                      <img
+                        src={previewUrl}
+                        style={{ maxWidth: '100%', maxHeight: 240, borderRadius: 8, border: '1px solid #ddd' }}
+                      />
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <button onClick={() => doDecryptAndShow(i)}>Decrypt & View</button>
+                </div>
               </div>
-              <div>
-                <button onClick={() => doDecryptAndShow(i)}>Decrypt & Open</button>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </section>
     </div>
