@@ -7,12 +7,39 @@ import { useZamaInstance } from '../hooks/useZamaInstance';
 import { useEthersSigner } from '../hooks/useEthersSigner';
 import { CONTRACT_ADDRESS, IMAGE_STORE_ABI } from '../config/imageStore';
 import { encryptBytes, decryptBytes, deriveAesKeyFromAddress } from '../utils/crypto';
-import { putObject, getObject } from '../utils/db';
+import { putObject, getObject, DEFAULT_MIME } from '../utils/db';
 
 type Entry = { name: string; ipfsHash: string };
 
 function bytesToHex(uint8: Uint8Array) {
   return Array.from(uint8).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function guessMimeType(name: string, fallback: string = DEFAULT_MIME) {
+  const ext = name.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'png':
+      return 'image/png';
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'gif':
+      return 'image/gif';
+    case 'webp':
+      return 'image/webp';
+    case 'bmp':
+      return 'image/bmp';
+    case 'svg':
+      return 'image/svg+xml';
+    case 'avif':
+      return 'image/avif';
+    case 'heic':
+      return 'image/heic';
+    case 'heif':
+      return 'image/heif';
+    default:
+      return fallback;
+  }
 }
 
 async function fakeIpfsCid(data: Uint8Array) {
@@ -87,9 +114,10 @@ export function ImageApp() {
   };
 
   const doMockUpload = async () => {
-    if (!encBytes) return;
+    if (!encBytes || !file) return;
     const cid = await fakeIpfsCid(encBytes);
-    await putObject(cid, encBytes);
+    const mime = file.type || guessMimeType(file.name, DEFAULT_MIME);
+    await putObject(cid, { cipher: encBytes, mime });
     setIpfsHash(cid);
   };
 
@@ -230,10 +258,11 @@ export function ImageApp() {
       alert('Encrypted image not found locally');
       return;
     }
-    const iv = stored.slice(0, 12);
-    const ct = stored.slice(12);
+    const iv = stored.cipher.slice(0, 12);
+    const ct = stored.cipher.slice(12);
     const plain = await decryptBytes(ct, key, iv);
-    const blob = new Blob([plain]);
+    const mime = stored.mime && stored.mime !== DEFAULT_MIME ? stored.mime : guessMimeType(meta.name, DEFAULT_MIME);
+    const blob = new Blob([plain], { type: mime });
     const url = URL.createObjectURL(blob);
     setDecryptedUrls((prev) => {
       if (decryptedUrlRef.current[idx]) {
