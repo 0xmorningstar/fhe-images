@@ -1,6 +1,5 @@
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { ethers, fhevm } from "hardhat";
-import { FhevmType } from "@fhevm/hardhat-plugin";
 import { expect } from "chai";
 
 type Signers = {
@@ -33,9 +32,9 @@ describe("ImageVault (mock)", function () {
     const name = "cat.png";
     const ipfs = "bafyfakecid";
     const addrHex = "0x1234567890abcdef1234567890abcdef12345678";
-    const addrBI = BigInt(addrHex);
-
-    const enc = await fhevm.createEncryptedInput(vaultAddress, signers.alice.address).add256(addrBI).encrypt();
+    const enc = await fhevm.createEncryptedInput(vaultAddress, signers.alice.address)
+      .addAddress(addrHex)
+      .encrypt();
 
     const tx = await vault.connect(signers.alice).saveImage(name, ipfs, enc.handles[0], enc.inputProof);
     await tx.wait();
@@ -51,7 +50,7 @@ describe("ImageVault (mock)", function () {
     expect(encHandle).to.not.eq(ethers.ZeroHash);
 
     // user decrypt
-    const clear = await fhevm.userDecryptEuint(FhevmType.euint256, encHandle, vaultAddress, signers.alice);
-    expect(clear).to.eq(addrBI);
+    const clear = await fhevm.userDecryptEaddress(encHandle, vaultAddress, signers.alice);
+    expect(clear).to.eq(ethers.getAddress(addrHex));
   });
 });
