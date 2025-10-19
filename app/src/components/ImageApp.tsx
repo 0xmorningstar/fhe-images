@@ -94,8 +94,7 @@ export function ImageApp() {
   const doSaveOnChain = async () => {
     if (!address || !instance || !signerPromise || !randomAddress || !ipfsHash || !name) return;
     const input = instance.createEncryptedInput(CONTRACT_ADDRESS, address);
-    const addrBI = BigInt(randomAddress);
-    input.add256(addrBI);
+    input.addAddress(randomAddress);
     const encryptedInput = await input.encrypt();
     const signer = await signerPromise;
     const contract = new Contract(CONTRACT_ADDRESS, IMAGE_STORE_ABI as any, signer);
@@ -203,10 +202,7 @@ export function ImageApp() {
       durationDays,
     );
 
-    const val = result[encHandle] as bigint;
-    // convert uint256 to address hex (lower 20 bytes)
-    const hex = val.toString(16).padStart(64, '0');
-    const addr = '0x' + hex.slice(24 * 2); // last 40 chars
+    const addr = result[encHandle] as string;
     const key = await deriveAesKeyFromAddress(addr);
     const stored = await getObject(meta.ipfsHash);
     if (!stored) {
