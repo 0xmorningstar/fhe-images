@@ -2,7 +2,7 @@
 // deployments/sepolia/ImageVault.json into the constant below as a TS array.
 // Also set the deployed contract address.
 
-export const CONTRACT_ADDRESS = "0x9E5427E269C6BeCC305C6703D2EAD8B4084B65E8";
+export const CONTRACT_ADDRESS = "0xB7724eA8285c282874E7ae6fd9AfE5071DBcDAd0";
 
 export const IMAGE_STORE_ABI = [
   {

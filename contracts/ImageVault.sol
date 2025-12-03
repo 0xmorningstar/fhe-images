@@ -2,12 +2,12 @@
 pragma solidity ^0.8.24;
 
 import {FHE, eaddress, externalEaddress} from "@fhevm/solidity/lib/FHE.sol";
-import {SepoliaConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
+import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 
 /// @title ImageVault
 /// @notice Stores image metadata and an encrypted AES key seed (address A) using FHEVM
 /// @dev Encrypted address uses the dedicated eaddress ciphertext type
-contract ImageVault is SepoliaConfig {
+contract ImageVault is ZamaEthereumConfig {
     struct ImageRecord {
         string name;
         string ipfsHash;
